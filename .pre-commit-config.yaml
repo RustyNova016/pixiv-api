@@ -1,0 +1,58 @@
+# Pre-commit hooks configuration for pixiv-api
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+default_install_hook_types: [pre-commit, commit-msg]
+fail_fast: false
+
+repos:
+  # ─── 通用文件检查 ───
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  # ─── Conventional Commits 校验 ───
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - --verbose
+          - feat
+          - fix
+          - docs
+          - style
+          - refactor
+          - test
+          - chore
+          - ci
+          - build
+          - revert
+          - perf
+
+  # ─── Rust 格式化 + Lint ───
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        description: Format Rust code with cargo fmt.
+        entry: cargo fmt
+        language: system
+        types: [rust]
+        args: ["--", "--check"]
+
+      - id: cargo-clippy
+        name: cargo clippy
+        description: Lint Rust code with clippy.
+        entry: cargo clippy
+        language: system
+        types: [rust]
+        args: ["--", "-D", "warnings"]
+        pass_filenames: false
