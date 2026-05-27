@@ -64,6 +64,41 @@ impl SearchTarget {
     }
 }
 
+/// Response from search_illust endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchIllustResult {
+    #[serde(default)]
+    pub illusts: Vec<super::illust::Illust>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+    #[serde(default)]
+    pub search_span_limit: Option<i32>,
+    #[serde(default)]
+    pub show_ai: Option<bool>,
+}
+
+/// Response from search_novel endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchNovelResult {
+    #[serde(default)]
+    pub novels: Vec<super::novel::Novel>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+    #[serde(default)]
+    pub search_span_limit: Option<i32>,
+    #[serde(default)]
+    pub show_ai: Option<bool>,
+}
+
+/// Response from search_user endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchUserResult {
+    #[serde(default)]
+    pub user_previews: Vec<super::user::UserPreview>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

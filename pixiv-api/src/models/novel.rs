@@ -118,6 +118,51 @@ pub struct NovelComments {
     pub comment_access_control: Option<i32>,
 }
 
+/// Response from novel_recommended endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovelRecommendedResult {
+    #[serde(default)]
+    pub novels: Vec<Novel>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from user_novels endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserNovelsResult {
+    #[serde(default)]
+    pub novels: Vec<Novel>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from user_bookmarks_novel endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserBookmarksNovelResult {
+    #[serde(default)]
+    pub novels: Vec<Novel>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from novel_follow endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovelFollowResult {
+    #[serde(default)]
+    pub novels: Vec<Novel>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from novel_new endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovelNewResult {
+    #[serde(default)]
+    pub novels: Vec<Novel>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

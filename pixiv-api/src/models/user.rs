@@ -151,6 +151,42 @@ pub struct Workspace {
     pub workspace_image_url: Option<String>,
 }
 
+/// Response from user_following endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserFollowingResult {
+    #[serde(default)]
+    pub user_previews: Vec<UserPreview>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from user_follower endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserFollowerResult {
+    #[serde(default)]
+    pub user_previews: Vec<UserPreview>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from user_mypixiv endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserMypixivResult {
+    #[serde(default)]
+    pub user_previews: Vec<UserPreview>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from user_list endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserListResult {
+    #[serde(default)]
+    pub user_previews: Vec<UserPreview>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

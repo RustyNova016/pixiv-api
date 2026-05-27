@@ -129,6 +129,120 @@ pub struct UgoiraFrame {
     pub delay: u32,
 }
 
+/// Response from illust_ranking endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustRankingResult {
+    #[serde(default)]
+    pub illusts: Vec<Illust>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from illust_recommended endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustRecommendedResult {
+    #[serde(default)]
+    pub illusts: Vec<Illust>,
+    #[serde(default)]
+    pub ranking_illusts: Option<Vec<Illust>>,
+    #[serde(default)]
+    pub contest_exists: Option<bool>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from illust_follow endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustFollowResult {
+    #[serde(default)]
+    pub illusts: Vec<Illust>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from illust_new endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustNewResult {
+    #[serde(default)]
+    pub illusts: Vec<Illust>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from user_illusts endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserIllustsResult {
+    #[serde(default)]
+    pub illusts: Vec<Illust>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from user_bookmarks_illust endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserBookmarksIllustResult {
+    #[serde(default)]
+    pub illusts: Vec<Illust>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from illust_related endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustRelatedResult {
+    #[serde(default)]
+    pub illusts: Vec<Illust>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+}
+
+/// Response from illust_comments endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustCommentsResult {
+    #[serde(default)]
+    pub comments: Vec<Comment>,
+    #[serde(default)]
+    pub next_url: Option<String>,
+    #[serde(default)]
+    pub total_comments: Option<u64>,
+    #[serde(default)]
+    pub comment_access_control: Option<i32>,
+}
+
+/// Response from illust_bookmark_detail endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustBookmarkDetailResult {
+    #[serde(default)]
+    pub is_bookmarked: bool,
+    #[serde(default)]
+    pub restrict: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<BookmarkTag>,
+}
+
+/// A tag as returned by the bookmark detail endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BookmarkTag {
+    pub name: String,
+    #[serde(default)]
+    pub is_registered: Option<bool>,
+}
+
+/// A trending tag with its associated illustration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrendingTag {
+    pub tag: super::common::Tag,
+    #[serde(default)]
+    pub illust: Option<Illust>,
+}
+
+/// Response from trending_tags_illust endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrendingTagsResult {
+    #[serde(default)]
+    pub trend_tags: Vec<TrendingTag>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
