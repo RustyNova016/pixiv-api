@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
-use pixiv_api::PixivApi;
-use pixiv_api::models::search::SearchSort;
+use pixiv_client::PixivApi;
+use pixiv_client::models::search::SearchSort;
 
 #[derive(Parser)]
 #[command(name = "pixiv-dl")]
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let api = authenticated_api().await?;
             let sort_enum: SearchSort = sort
                 .parse()
-                .map_err(|e: String| pixiv_api::PixivError::Other(e))?;
+                .map_err(|e: String| pixiv_client::PixivError::Other(e))?;
             let result = api
                 .search_illust(&keyword, Some(sort_enum), None, None, Some(offset))
                 .await?;
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         detail.raw["illust"]["meta_single_page"]["original_image_url"].as_str()
                     });
                 if let Some(url) = image_url {
-                    let dm = pixiv_api::downloader::DownloadManager::new(
+                    let dm = pixiv_client::downloader::DownloadManager::new(
                         reqwest::Client::new(),
                         &output,
                     );

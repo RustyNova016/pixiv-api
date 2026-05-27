@@ -1,4 +1,4 @@
-# pixiv-api
+# pixiv-client
 
 A Rust client library and CLI tool for the Pixiv App API (6.x), with full API parity with [pixivpy](https://github.com/upbit/pixivpy).
 
@@ -17,14 +17,14 @@ A Rust client library and CLI tool for the Pixiv App API (6.x), with full API pa
 
 ```toml
 [dependencies]
-pixiv-api = "0.1"
+pixiv-client = "0.1"
 ```
 
 With SNI bypass support (for users behind the Great Firewall):
 
 ```toml
 [dependencies]
-pixiv-api = { version = "0.1", features = ["gfw-bypass"] }
+pixiv-client = { version = "0.1", features = ["gfw-bypass"] }
 ```
 
 ### As a CLI tool
@@ -38,10 +38,10 @@ cargo install --path pixiv-dl
 ### Library
 
 ```rust
-use pixiv_api::PixivApi;
+use pixiv_client::PixivApi;
 
 #[tokio::main]
-async fn main() -> pixiv_api::Result<()> {
+async fn main() -> pixiv_client::Result<()> {
     let api = PixivApi::new();
     api.auth("your_refresh_token").await?;
 
@@ -81,7 +81,7 @@ pixiv-dl download 12345 12346 -o ./images/
 Run the included helper:
 
 ```bash
-cargo run -p pixiv-api --example get_token
+cargo run -p pixiv-client --example get_token
 ```
 
 This will guide you through the OAuth2 PKCE flow:
@@ -211,7 +211,7 @@ let raw = &resp.raw;
 All errors are wrapped in `PixivError`:
 
 ```rust
-use pixiv_api::PixivError;
+use pixiv_client::PixivError;
 
 match api.illust_detail(12345).await {
     Ok(resp) => { /* ... */ }
@@ -226,7 +226,7 @@ match api.illust_detail(12345).await {
 ## Downloader
 
 ```rust
-use pixiv_api::downloader::DownloadManager;
+use pixiv_client::downloader::DownloadManager;
 
 let dm = DownloadManager::new(reqwest::Client::new(), "./images");
 
@@ -246,7 +246,7 @@ let results = dm.download_many(&items, 3).await; // max 3 concurrent
 Enable the `gfw-bypass` feature:
 
 ```toml
-pixiv-api = { version = "0.1", features = ["gfw-bypass"] }
+pixiv-client = { version = "0.1", features = ["gfw-bypass"] }
 ```
 
 Use it to resolve Pixiv's real IP via DNS-over-HTTPS:
@@ -263,8 +263,8 @@ Use it to resolve Pixiv's real IP via DNS-over-HTTPS:
 ## Configuration
 
 ```rust
-use pixiv_api::config::{Config, ClientConfig};
-use pixiv_api::PixivApi;
+use pixiv_client::config::{Config, ClientConfig};
+use pixiv_client::PixivApi;
 
 // Custom config
 let config = Config {

@@ -1,4 +1,4 @@
-use pixiv_api::{ApiResponse, PixivApi};
+use pixiv_client::{ApiResponse, PixivApi};
 
 #[tokio::test]
 async fn test_client_creation() {

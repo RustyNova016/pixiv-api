@@ -1,6 +1,6 @@
 /// Helper to obtain a Pixiv refresh token via OAuth2 PKCE flow.
 ///
-/// Run: cargo run -p pixiv-api --example get_token
+/// Run: cargo run -p pixiv-client --example get_token
 ///
 /// Steps:
 /// 1. This script prints a URL — open it in your browser

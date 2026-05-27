@@ -19,9 +19,9 @@ use tokio::sync::Mutex;
 ///
 /// # Example
 /// ```rust,no_run
-/// use pixiv_api::PixivApi;
+/// use pixiv_client::PixivApi;
 ///
-/// # async fn example() -> Result<(), pixiv_api::PixivError> {
+/// # async fn example() -> Result<(), pixiv_client::PixivError> {
 /// let api = PixivApi::new();
 /// api.auth("your_refresh_token").await?;
 /// # Ok(())

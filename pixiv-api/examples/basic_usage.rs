@@ -1,8 +1,8 @@
-use pixiv_api::PixivApi;
-use pixiv_api::models::search::SearchSort;
+use pixiv_client::PixivApi;
+use pixiv_client::models::search::SearchSort;
 
 #[tokio::main]
-async fn main() -> Result<(), pixiv_api::PixivError> {
+async fn main() -> Result<(), pixiv_client::PixivError> {
     // Create a new client
     let api = PixivApi::new();
 
