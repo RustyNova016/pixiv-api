@@ -32,6 +32,10 @@ impl<T: for<'de> Deserialize<'de>> ApiResponse<T> {
 
 impl<T> ApiResponse<T> {
     /// Get the typed data, panicking if missing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self.data` is `None` (i.e., deserialization failed).
     pub fn unwrap(self) -> T {
         self.data.expect("ApiResponse data was None")
     }

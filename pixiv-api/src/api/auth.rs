@@ -1,12 +1,11 @@
 use crate::PixivApi;
-use crate::error::PixivError;
 
 impl PixivApi {
     /// Authenticate with a refresh token.
     ///
     /// This is the primary authentication method. Password-based auth
     /// is deprecated by Pixiv.
-    pub async fn auth(&mut self, refresh_token: &str) -> crate::Result<()> {
+    pub async fn auth(&self, refresh_token: &str) -> crate::Result<()> {
         let (access, refresh, uid) =
             Self::fetch_tokens(&self.client, &self.config, refresh_token).await?;
 
@@ -36,17 +35,6 @@ impl PixivApi {
         let tokens = self.tokens.lock().await;
         tokens.1.clone()
     }
-
-    /// Require authentication, returning an error if not authenticated.
-    pub(crate) async fn require_auth(&self) -> crate::Result<()> {
-        let tokens = self.tokens.lock().await;
-        if tokens.0.is_none() {
-            return Err(PixivError::Auth(
-                "not authenticated. Call auth() or set_auth() first.".into(),
-            ));
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -66,19 +54,6 @@ mod tests {
             Some("refresh_456")
         );
         assert_eq!(api.user_id().await, Some(789));
-    }
-
-    #[tokio::test]
-    async fn test_require_auth_fails_without_token() {
-        let api = PixivApi::new();
-        assert!(api.require_auth().await.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_require_auth_succeeds_with_token() {
-        let api = PixivApi::new();
-        api.set_auth("token", "refresh", 1).await;
-        assert!(api.require_auth().await.is_ok());
     }
 
     #[tokio::test]

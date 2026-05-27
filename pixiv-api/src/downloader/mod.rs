@@ -64,7 +64,10 @@ impl DownloadManager {
             let dir = self.output_dir.clone();
 
             handles.push(tokio::spawn(async move {
-                let _permit = sem.acquire().await.unwrap();
+                let _permit = match sem.acquire().await {
+                    Ok(permit) => permit,
+                    Err(e) => return Err(PixivError::Download(e.to_string())),
+                };
                 let dm = DownloadManager::new(client, dir);
                 dm.download(&url, &filename).await
             }));
@@ -72,7 +75,10 @@ impl DownloadManager {
 
         let mut results = Vec::new();
         for handle in handles {
-            results.push(handle.await.unwrap());
+            match handle.await {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(Err(PixivError::Download(e.to_string()))),
+            }
         }
         results
     }

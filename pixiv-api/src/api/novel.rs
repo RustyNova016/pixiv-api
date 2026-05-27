@@ -74,21 +74,10 @@ impl PixivApi {
         &self,
         novel_id: u64,
     ) -> crate::Result<ApiResponse<serde_json::Value>> {
-        self.require_auth().await?;
-        let url = format!(
-            "{}/webview/v2/novel?id={novel_id}&viewer_version=20221031",
-            self.config.host
-        );
-        let resp = self
-            .client
-            .get(&url)
-            .headers(self.auth_headers().await?)
-            .send()
-            .await?;
-        if !resp.status().is_success() {
-            return Err(crate::PixivError::Status(resp.status()));
-        }
-        let raw_json: serde_json::Value = resp.json().await?;
-        Ok(crate::models::ApiResponse::from_json(raw_json))
+        self.request(
+            Method::GET,
+            &format!("/webview/v2/novel?id={novel_id}&viewer_version=20221031"),
+        )
+        .await
     }
 }

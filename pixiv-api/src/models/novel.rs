@@ -101,12 +101,6 @@ pub struct NovelSeries {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NovelText {
-    #[serde(default)]
-    pub novel_text: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovelComments {
     #[serde(default)]
     pub comments: Vec<super::illust::Comment>,

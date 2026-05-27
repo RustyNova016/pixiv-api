@@ -59,6 +59,20 @@ impl SearchDuration {
     }
 }
 
+impl FromStr for SearchDuration {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "within_last_day" => Ok(Self::WithinLastDay),
+            "within_last_week" => Ok(Self::WithinLastWeek),
+            "within_last_month" => Ok(Self::WithinLastMonth),
+            "" => Ok(Self::None),
+            _ => Err(format!("unknown SearchDuration variant: {s}")),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchTarget {
@@ -76,6 +90,20 @@ impl SearchTarget {
             Self::ExactMatchForTags => "exact_match_for_tags",
             Self::TitleAndCaption => "title_and_caption",
             Self::Keyword => "keyword",
+        }
+    }
+}
+
+impl FromStr for SearchTarget {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "partial_match_for_tags" => Ok(Self::PartialMatchForTags),
+            "exact_match_for_tags" => Ok(Self::ExactMatchForTags),
+            "title_and_caption" => Ok(Self::TitleAndCaption),
+            "keyword" => Ok(Self::Keyword),
+            _ => Err(format!("unknown SearchTarget variant: {s}")),
         }
     }
 }
@@ -135,5 +163,60 @@ mod tests {
         let json = r#""partial_match_for_tags""#;
         let target: SearchTarget = serde_json::from_str(json).unwrap();
         assert!(matches!(target, SearchTarget::PartialMatchForTags));
+    }
+
+    #[test]
+    fn test_search_sort_from_str() {
+        assert!(matches!(
+            SearchSort::from_str("date_desc"),
+            Ok(SearchSort::DateDesc)
+        ));
+        assert!(matches!(
+            SearchSort::from_str("popular_female_desc"),
+            Ok(SearchSort::PopularFemaleDesc)
+        ));
+        assert!(SearchSort::from_str("invalid").is_err());
+    }
+
+    #[test]
+    fn test_search_duration_from_str() {
+        assert!(matches!(
+            SearchDuration::from_str("within_last_day"),
+            Ok(SearchDuration::WithinLastDay)
+        ));
+        assert!(matches!(
+            SearchDuration::from_str("within_last_week"),
+            Ok(SearchDuration::WithinLastWeek)
+        ));
+        assert!(matches!(
+            SearchDuration::from_str("within_last_month"),
+            Ok(SearchDuration::WithinLastMonth)
+        ));
+        assert!(matches!(
+            SearchDuration::from_str(""),
+            Ok(SearchDuration::None)
+        ));
+        assert!(SearchDuration::from_str("invalid").is_err());
+    }
+
+    #[test]
+    fn test_search_target_from_str() {
+        assert!(matches!(
+            SearchTarget::from_str("partial_match_for_tags"),
+            Ok(SearchTarget::PartialMatchForTags)
+        ));
+        assert!(matches!(
+            SearchTarget::from_str("exact_match_for_tags"),
+            Ok(SearchTarget::ExactMatchForTags)
+        ));
+        assert!(matches!(
+            SearchTarget::from_str("title_and_caption"),
+            Ok(SearchTarget::TitleAndCaption)
+        ));
+        assert!(matches!(
+            SearchTarget::from_str("keyword"),
+            Ok(SearchTarget::Keyword)
+        ));
+        assert!(SearchTarget::from_str("invalid").is_err());
     }
 }

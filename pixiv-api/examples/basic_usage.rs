@@ -4,7 +4,7 @@ use pixiv_api::models::search::SearchSort;
 #[tokio::main]
 async fn main() -> Result<(), pixiv_api::PixivError> {
     // Create a new client
-    let mut api = PixivApi::new();
+    let api = PixivApi::new();
 
     // Authenticate (requires PIXIV_REFRESH_TOKEN env var)
     let token =

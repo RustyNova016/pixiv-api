@@ -42,7 +42,7 @@ use pixiv_api::PixivApi;
 
 #[tokio::main]
 async fn main() -> pixiv_api::Result<()> {
-    let mut api = PixivApi::new();
+    let api = PixivApi::new();
     api.auth("your_refresh_token").await?;
 
     // Search illustrations
@@ -96,17 +96,17 @@ This will guide you through the OAuth2 PKCE flow:
 ### Authentication
 
 ```rust
-let mut api = PixivApi::new();
+let api = PixivApi::new();
 
 // Authenticate with refresh token
 api.auth("your_refresh_token").await?;
 
 // Or set tokens manually
-api.set_auth("access_token", "refresh_token", user_id);
+api.set_auth("access_token", "refresh_token", user_id).await;
 
 // Check auth status
-assert!(api.is_authenticated());
-assert_eq!(api.user_id(), Some(12345));
+assert!(api.is_authenticated().await);
+assert_eq!(api.user_id().await, Some(12345));
 ```
 
 ### User Endpoints

@@ -22,7 +22,7 @@ use tokio::sync::Mutex;
 /// use pixiv_api::PixivApi;
 ///
 /// # async fn example() -> Result<(), pixiv_api::PixivError> {
-/// let mut api = PixivApi::new();
+/// let api = PixivApi::new();
 /// api.auth("your_refresh_token").await?;
 /// # Ok(())
 /// # }

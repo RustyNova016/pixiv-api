@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Commands::Auth { token } => {
-            let mut api = PixivApi::new();
+            let api = PixivApi::new();
             api.auth(&token).await?;
             println!("Authenticated successfully.");
             println!("User ID: {:?}", api.user_id().await);
@@ -109,7 +109,7 @@ async fn authenticated_api() -> Result<PixivApi, Box<dyn std::error::Error>> {
     let token = std::env::var("PIXIV_REFRESH_TOKEN")
         .map_err(|_| "Set PIXIV_REFRESH_TOKEN env var or use 'pixiv-dl auth' first")?;
 
-    let mut api = PixivApi::new();
+    let api = PixivApi::new();
     api.auth(&token).await?;
     Ok(api)
 }
