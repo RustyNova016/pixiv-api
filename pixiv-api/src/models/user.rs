@@ -11,6 +11,8 @@ pub struct UserPreview {
     pub profile_image_urls: Option<ProfileImageUrls>,
     #[serde(default)]
     pub is_followed: Option<bool>,
+    #[serde(default)]
+    pub is_accept_request: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

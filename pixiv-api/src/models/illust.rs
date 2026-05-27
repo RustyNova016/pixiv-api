@@ -57,6 +57,18 @@ pub struct Illust {
     pub is_muted: Option<bool>,
     #[serde(default)]
     pub total_comments: Option<u64>,
+    #[serde(default)]
+    pub restrict: Option<i32>,
+    #[serde(default)]
+    pub illust_ai_type: Option<i32>,
+    #[serde(default)]
+    pub illust_book_style: Option<i32>,
+    #[serde(default)]
+    pub event_banners: Option<Vec<serde_json::Value>>,
+    #[serde(default)]
+    pub request: Option<serde_json::Value>,
+    #[serde(default)]
+    pub seasonal_effect_animation_urls: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
