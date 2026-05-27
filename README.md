@@ -281,6 +281,12 @@ let client_config = ClientConfig {
 let api = PixivApi::with_config(config, client_config);
 ```
 
+## Acknowledgments
+
+This crate is a Rust port of [pixivpy](https://github.com/upbit/pixivpy) by [upbit](https://github.com/upbit). The API endpoints, authentication flow, and request signing logic are based on pixivpy's implementation.
+
+If you find this crate useful, consider starring the original project as well.
+
 ## License
 
-Unlicense
+MIT

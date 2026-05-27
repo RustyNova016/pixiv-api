@@ -2,6 +2,11 @@
 name = "pixiv-api"
 version = "0.1.0"
 edition = "2024"
+description = "Async Rust client for the Pixiv App API (6.x) with typed models and automatic token refresh"
+license = "MIT"
+repository = "https://github.com/modenicheng/pixiv-api"
+keywords = ["pixiv", "api", "illustration", "async", "art"]
+categories = ["api-bindings", "web-programming::http-client"]
 
 [dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
