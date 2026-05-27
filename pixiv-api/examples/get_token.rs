@@ -5,9 +5,11 @@
 /// Steps:
 /// 1. This script prints a URL — open it in your browser
 /// 2. Log in to Pixiv and authorize the app
-/// 3. Copy the full redirect URL (it contains a "code" parameter)
-/// 4. Paste it here when prompted
-/// 5. The script prints your refresh token
+/// 3. After login, the browser redirects to a callback URL with ?code=...
+///    (the page will show an error — that's expected!)
+/// 4. Copy the FULL URL from the browser address bar
+/// 5. Paste it here when prompted
+/// 6. The script prints your refresh token
 use sha2::Digest;
 
 const LOGIN_URL: &str = "https://app-api.pixiv.net/web/v1/login";
@@ -15,6 +17,7 @@ const AUTH_TOKEN_URL: &str = "https://oauth.secure.pixiv.net/auth/token";
 const CLIENT_ID: &str = "MOBrBDS8blbauoSck0ZfDbtuzpyT";
 const CLIENT_SECRET: &str = "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj";
 const HASH_SECRET: &str = "28c1fdd170a5204386cb1313c7077b34f83e4aaf4aa829ce78c231e05b0bae2c";
+const REDIRECT_URI: &str = "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback";
 
 #[tokio::main]
 async fn main() {
@@ -35,9 +38,11 @@ async fn main() {
     println!("=== Pixiv Refresh Token Helper ===\n");
     println!("1. Open this URL in your browser:\n");
     println!("   {}\n", url);
-    println!("2. Log in and authorize the app");
-    println!("3. Copy the FULL redirect URL (starts with pixiv://...)");
-    println!("4. Paste it below and press Enter\n");
+    println!("2. Log in to Pixiv and authorize the app");
+    println!("3. After login, your browser will redirect to a page that shows an error.");
+    println!("   That's expected! The URL in your address bar will look like:");
+    println!("   https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback?state=...&code=XXXXX");
+    println!("4. Copy the FULL URL from the address bar and paste it below\n");
 
     // Read the redirect URL from user input
     let mut input = String::new();
@@ -46,7 +51,7 @@ async fn main() {
 
     // Extract the code from the redirect URL
     let code = extract_code(redirect_url).expect(
-        "Could not extract 'code' from the URL. Make sure you copied the full pixiv://... URL",
+        "Could not extract 'code' from the URL. Make sure you copied the full callback URL",
     );
 
     println!("\nExchanging code for tokens...");
@@ -72,10 +77,7 @@ async fn main() {
             ("code_verifier", &code_verifier),
             ("grant_type", "authorization_code"),
             ("include_policy", "true"),
-            (
-                "redirect_uri",
-                "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback",
-            ),
+            ("redirect_uri", REDIRECT_URI),
         ])
         .send()
         .await
@@ -114,7 +116,8 @@ fn base64_encode(data: &[u8]) -> String {
 }
 
 fn extract_code(url: &str) -> Option<String> {
-    // Handle both pixiv://...?code=XXX and https://...?code=XXX
+    // Handle callback URL: https://app-api.pixiv.net/.../callback?code=XXX
+    // Also handle pixiv://...?code=XXX (older flow)
     let query_start = url.find('?')?;
     let query = &url[query_start + 1..];
     for pair in query.split('&') {
