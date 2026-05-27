@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -18,6 +19,21 @@ impl SearchSort {
             Self::PopularDesc => "popular_desc",
             Self::PopularMaleDesc => "popular_male_desc",
             Self::PopularFemaleDesc => "popular_female_desc",
+        }
+    }
+}
+
+impl FromStr for SearchSort {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "date_desc" => Ok(Self::DateDesc),
+            "date_asc" => Ok(Self::DateAsc),
+            "popular_desc" => Ok(Self::PopularDesc),
+            "popular_male_desc" => Ok(Self::PopularMaleDesc),
+            "popular_female_desc" => Ok(Self::PopularFemaleDesc),
+            _ => Err(format!("unknown SearchSort variant: {s}")),
         }
     }
 }

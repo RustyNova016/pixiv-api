@@ -163,6 +163,27 @@ pub struct NovelNewResult {
     pub next_url: Option<String>,
 }
 
+/// Response from novel_detail endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovelDetail {
+    pub novel: Novel,
+}
+
+/// Response from novel_series endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovelSeriesResult {
+    pub novel_series: NovelSeries,
+    #[serde(default)]
+    pub novels: Vec<Novel>,
+}
+
+/// Response from novel_text endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovelTextResult {
+    #[serde(default)]
+    pub novel_text: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

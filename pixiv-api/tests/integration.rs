@@ -1,17 +1,17 @@
 use pixiv_api::{ApiResponse, PixivApi};
 
-#[test]
-fn test_client_creation() {
+#[tokio::test]
+async fn test_client_creation() {
     let api = PixivApi::new();
-    assert!(!api.is_authenticated());
+    assert!(!api.is_authenticated().await);
 }
 
-#[test]
-fn test_set_auth() {
-    let mut api = PixivApi::new();
-    api.set_auth("token", "refresh", 123);
-    assert!(api.is_authenticated());
-    assert_eq!(api.user_id(), Some(123));
+#[tokio::test]
+async fn test_set_auth() {
+    let api = PixivApi::new();
+    api.set_auth("token", "refresh", 123).await;
+    assert!(api.is_authenticated().await);
+    assert_eq!(api.user_id().await, Some(123));
 }
 
 #[test]

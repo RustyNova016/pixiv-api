@@ -1,13 +1,14 @@
 use crate::PixivApi;
 use crate::models::ApiResponse;
+use crate::models::illust::{
+    IllustBookmarkDetailResult, IllustCommentsResult, IllustDetail, IllustFollowResult,
+    IllustNewResult, IllustRankingResult, IllustRecommendedResult, IllustRelatedResult,
+};
 use reqwest::Method;
 
 impl PixivApi {
     /// Get illustration details.
-    pub async fn illust_detail(
-        &self,
-        illust_id: u64,
-    ) -> crate::Result<ApiResponse<serde_json::Value>> {
+    pub async fn illust_detail(&self, illust_id: u64) -> crate::Result<ApiResponse<IllustDetail>> {
         self.request(
             Method::GET,
             &format!("/v1/illust/detail?illust_id={illust_id}"),
@@ -20,7 +21,7 @@ impl PixivApi {
         &self,
         illust_id: u64,
         offset: Option<u32>,
-    ) -> crate::Result<ApiResponse<serde_json::Value>> {
+    ) -> crate::Result<ApiResponse<IllustCommentsResult>> {
         let mut path = format!("/v1/illust/comments?illust_id={illust_id}");
         if let Some(o) = offset {
             path.push_str(&format!("&offset={o}"));
@@ -32,7 +33,7 @@ impl PixivApi {
     pub async fn illust_related(
         &self,
         illust_id: u64,
-    ) -> crate::Result<ApiResponse<serde_json::Value>> {
+    ) -> crate::Result<ApiResponse<IllustRelatedResult>> {
         self.request(
             Method::GET,
             &format!("/v2/illust/related?illust_id={illust_id}"),
@@ -41,7 +42,7 @@ impl PixivApi {
     }
 
     /// Get recommended illustrations.
-    pub async fn illust_recommended(&self) -> crate::Result<ApiResponse<serde_json::Value>> {
+    pub async fn illust_recommended(&self) -> crate::Result<ApiResponse<IllustRecommendedResult>> {
         self.request(Method::GET, "/v1/illust/recommended").await
     }
 
@@ -51,7 +52,7 @@ impl PixivApi {
         mode: Option<&str>,
         date: Option<&str>,
         offset: Option<u32>,
-    ) -> crate::Result<ApiResponse<serde_json::Value>> {
+    ) -> crate::Result<ApiResponse<IllustRankingResult>> {
         let mut path = "/v1/illust/ranking?".to_string();
         if let Some(m) = mode {
             path.push_str(&format!("mode={m}&"));
@@ -69,7 +70,7 @@ impl PixivApi {
     pub async fn illust_follow(
         &self,
         restrict: Option<&str>,
-    ) -> crate::Result<ApiResponse<serde_json::Value>> {
+    ) -> crate::Result<ApiResponse<IllustFollowResult>> {
         let mut path = "/v2/illust/follow?".to_string();
         if let Some(r) = restrict {
             path.push_str(&format!("restrict={r}"));
@@ -78,7 +79,7 @@ impl PixivApi {
     }
 
     /// Get newest illustrations.
-    pub async fn illust_new(&self) -> crate::Result<ApiResponse<serde_json::Value>> {
+    pub async fn illust_new(&self) -> crate::Result<ApiResponse<IllustNewResult>> {
         self.request(Method::GET, "/v1/illust/new").await
     }
 
@@ -86,7 +87,7 @@ impl PixivApi {
     pub async fn illust_bookmark_detail(
         &self,
         illust_id: u64,
-    ) -> crate::Result<ApiResponse<serde_json::Value>> {
+    ) -> crate::Result<ApiResponse<IllustBookmarkDetailResult>> {
         self.request(
             Method::GET,
             &format!("/v2/illust/bookmark/detail?illust_id={illust_id}"),
@@ -101,27 +102,14 @@ impl PixivApi {
         restrict: Option<&str>,
         tags: Option<&[&str]>,
     ) -> crate::Result<ApiResponse<serde_json::Value>> {
-        self.require_auth()?;
-        let url = format!("{}/v2/illust/bookmark/add", self.config.host);
-        let mut params = vec![("illust_id", illust_id.to_string())];
+        let mut params = vec![("illust_id".to_string(), illust_id.to_string())];
         if let Some(r) = restrict {
-            params.push(("restrict", r.into()));
+            params.push(("restrict".to_string(), r.to_string()));
         }
         if let Some(t) = tags {
-            params.push(("tags", t.join(" ")));
+            params.push(("tags".to_string(), t.join(" ")));
         }
-        let resp = self
-            .client
-            .post(&url)
-            .headers(self.auth_headers())
-            .form(&params)
-            .send()
-            .await?;
-        if !resp.status().is_success() {
-            return Err(crate::PixivError::Status(resp.status()));
-        }
-        let raw: serde_json::Value = resp.json().await?;
-        Ok(crate::models::ApiResponse::from_json(raw))
+        self.post_form("/v2/illust/bookmark/add", params).await
     }
 
     /// Remove an illustration bookmark.
@@ -129,20 +117,10 @@ impl PixivApi {
         &self,
         illust_id: u64,
     ) -> crate::Result<ApiResponse<serde_json::Value>> {
-        self.require_auth()?;
-        let url = format!("{}/v1/illust/bookmark/delete", self.config.host);
-        let params = vec![("illust_id", illust_id.to_string())];
-        let resp = self
-            .client
-            .post(&url)
-            .headers(self.auth_headers())
-            .form(&params)
-            .send()
-            .await?;
-        if !resp.status().is_success() {
-            return Err(crate::PixivError::Status(resp.status()));
-        }
-        let raw: serde_json::Value = resp.json().await?;
-        Ok(crate::models::ApiResponse::from_json(raw))
+        self.post_form(
+            "/v1/illust/bookmark/delete",
+            vec![("illust_id".to_string(), illust_id.to_string())],
+        )
+        .await
     }
 }

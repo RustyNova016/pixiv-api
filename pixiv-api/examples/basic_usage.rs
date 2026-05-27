@@ -1,4 +1,5 @@
 use pixiv_api::PixivApi;
+use pixiv_api::models::search::SearchSort;
 
 #[tokio::main]
 async fn main() -> Result<(), pixiv_api::PixivError> {
@@ -9,11 +10,11 @@ async fn main() -> Result<(), pixiv_api::PixivError> {
     let token =
         std::env::var("PIXIV_REFRESH_TOKEN").expect("Set PIXIV_REFRESH_TOKEN environment variable");
     api.auth(&token).await?;
-    println!("Authenticated as user {:?}", api.user_id());
+    println!("Authenticated as user {:?}", api.user_id().await);
 
     // Search for illustrations (typed response with raw fallback)
     let results = api
-        .search_illust("landscape", Some("popular_desc"), None, None, None)
+        .search_illust("landscape", Some(SearchSort::PopularDesc), None, None, None)
         .await?;
     if let Some(data) = &results.data {
         println!(

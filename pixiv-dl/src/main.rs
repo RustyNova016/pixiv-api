@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use pixiv_api::PixivApi;
+use pixiv_api::models::search::SearchSort;
 
 #[derive(Parser)]
 #[command(name = "pixiv-dl")]
@@ -52,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut api = PixivApi::new();
             api.auth(&token).await?;
             println!("Authenticated successfully.");
-            println!("User ID: {:?}", api.user_id());
+            println!("User ID: {:?}", api.user_id().await);
         }
         Commands::Search {
             keyword,
@@ -60,8 +61,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             offset,
         } => {
             let api = authenticated_api().await?;
+            let sort_enum: SearchSort = sort
+                .parse()
+                .map_err(|e: String| pixiv_api::PixivError::Other(e))?;
             let result = api
-                .search_illust(&keyword, Some(&sort), None, None, Some(offset))
+                .search_illust(&keyword, Some(sort_enum), None, None, Some(offset))
                 .await?;
             println!("{}", serde_json::to_string_pretty(&result.raw)?);
         }

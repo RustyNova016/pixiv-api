@@ -224,6 +224,12 @@ pub struct TrendingTag {
     pub illust: Option<Illust>,
 }
 
+/// Response from illust_detail endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IllustDetail {
+    pub illust: Illust,
+}
+
 /// Response from trending_tags_illust endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendingTagsResult {

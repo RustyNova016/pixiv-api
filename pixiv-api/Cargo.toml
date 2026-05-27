@@ -16,6 +16,7 @@ url = "2"
 sha2 = "0.10"
 base64 = "0.22"
 rand = "0.8"
+urlencoding = "2"
 
 [features]
 gfw-bypass = []

@@ -9,8 +9,11 @@ pub mod user;
 pub mod bypass;
 
 use crate::config::{ClientConfig, Config};
+use crate::error::PixivError;
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue, REFERER};
 use reqwest::{Client, Method};
 use serde::de::DeserializeOwned;
+use tokio::sync::Mutex;
 
 /// Pixiv App API client.
 ///
@@ -24,12 +27,9 @@ use serde::de::DeserializeOwned;
 /// # Ok(())
 /// # }
 /// ```
-#[allow(dead_code)] // Fields will be used by auth, downloader, and endpoint modules
 pub struct PixivApi {
     pub(crate) client: Client,
-    pub(crate) access_token: Option<String>,
-    pub(crate) refresh_token: Option<String>,
-    pub(crate) user_id: Option<u64>,
+    pub(crate) tokens: Mutex<(Option<String>, Option<String>, Option<u64>)>,
     pub(crate) config: Config,
 }
 
@@ -55,39 +55,207 @@ impl PixivApi {
 
         Self {
             client,
-            access_token: None,
-            refresh_token: None,
-            user_id: None,
+            tokens: Mutex::new((None, None, None)),
             config,
         }
     }
 
     /// Check if the client is authenticated.
-    pub fn is_authenticated(&self) -> bool {
-        self.access_token.is_some()
+    pub async fn is_authenticated(&self) -> bool {
+        let tokens = self.tokens.lock().await;
+        tokens.0.is_some()
     }
 
     /// Get the current user ID, if authenticated.
-    pub fn user_id(&self) -> Option<u64> {
-        self.user_id
+    pub async fn user_id(&self) -> Option<u64> {
+        let tokens = self.tokens.lock().await;
+        tokens.2
     }
 
-    /// Internal: make an authenticated API request and parse the response.
-    #[allow(dead_code)] // Will be used by endpoint modules in later tasks
+    /// Internal: attempt to refresh the access token using the stored refresh token.
+    async fn try_refresh_token(&self) -> crate::Result<()> {
+        let rt = {
+            let tokens = self.tokens.lock().await;
+            tokens.1.clone()
+        };
+        let rt = rt.ok_or_else(|| PixivError::Auth("no refresh token available".into()))?;
+
+        let (new_access, new_refresh, new_uid) =
+            Self::fetch_tokens(&self.client, &self.config, &rt).await?;
+
+        let mut tokens = self.tokens.lock().await;
+        *tokens = (new_access, new_refresh, new_uid);
+        Ok(())
+    }
+
+    /// Internal: exchange a refresh token for new tokens (stateless, no locking).
+    async fn fetch_tokens(
+        client: &Client,
+        config: &Config,
+        refresh_token: &str,
+    ) -> crate::Result<(Option<String>, Option<String>, Option<u64>)> {
+        use chrono::Utc;
+        use md5::{Digest, Md5};
+
+        let now = Utc::now().format("%Y-%m-%dT%H:%M:%S%z").to_string();
+        let hash = {
+            let mut hasher = Md5::new();
+            hasher.update(format!("{}{}", now, config.hash_secret));
+            format!("{:x}", hasher.finalize())
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-client-time",
+            HeaderValue::from_str(&now)
+                .map_err(|e| PixivError::Other(format!("invalid header: {e}")))?,
+        );
+        headers.insert(
+            "x-client-hash",
+            HeaderValue::from_str(&hash)
+                .map_err(|e| PixivError::Other(format!("invalid header: {e}")))?,
+        );
+        headers.insert(
+            REFERER,
+            HeaderValue::from_static("https://app-api.pixiv.net/"),
+        );
+
+        let params = [
+            ("client_id", config.client_id),
+            ("client_secret", config.client_secret),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+        ];
+
+        let url = format!("{}/auth/token", config.auth_host);
+        let resp = client
+            .post(&url)
+            .headers(headers)
+            .form(&params)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            return Err(PixivError::Auth(format!(
+                "token refresh failed with status {}",
+                resp.status()
+            )));
+        }
+
+        #[derive(serde::Deserialize)]
+        struct AuthResp {
+            access_token: String,
+            refresh_token: String,
+            user: AuthUserResp,
+        }
+        #[derive(serde::Deserialize)]
+        struct AuthUserResp {
+            id: String,
+        }
+
+        let auth_resp: AuthResp = resp
+            .json()
+            .await
+            .map_err(|e| PixivError::Auth(format!("failed to parse auth response: {e}")))?;
+
+        Ok((
+            Some(auth_resp.access_token),
+            Some(auth_resp.refresh_token),
+            auth_resp.user.id.parse().ok(),
+        ))
+    }
+
+    /// Internal: build auth headers from current token.
+    pub(crate) async fn auth_headers(&self) -> crate::Result<HeaderMap> {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            REFERER,
+            HeaderValue::from_static("https://app-api.pixiv.net/"),
+        );
+        let tokens = self.tokens.lock().await;
+        if let Some(token) = &tokens.0 {
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {token}"))
+                    .map_err(|e| PixivError::Other(format!("invalid auth header: {e}")))?,
+            );
+        }
+        Ok(headers)
+    }
+
+    /// Internal: make an authenticated API request with automatic 401 retry.
     pub(crate) async fn request<T: DeserializeOwned>(
         &self,
         method: Method,
         path: &str,
     ) -> crate::Result<crate::models::ApiResponse<T>> {
-        self.require_auth()?;
-
         let url = format!("{}{path}", self.config.host);
+
         let resp = self
             .client
-            .request(method, &url)
-            .headers(self.auth_headers())
+            .request(method.clone(), &url)
+            .headers(self.auth_headers().await?)
             .send()
             .await?;
+
+        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+            self.try_refresh_token().await?;
+            let resp = self
+                .client
+                .request(method, &url)
+                .headers(self.auth_headers().await?)
+                .send()
+                .await?;
+            if !resp.status().is_success() {
+                return Err(crate::PixivError::Status(resp.status()));
+            }
+            let raw: serde_json::Value = resp.json().await?;
+            return Ok(crate::models::ApiResponse::from_json(raw));
+        }
+
+        if !resp.status().is_success() {
+            return Err(crate::PixivError::Status(resp.status()));
+        }
+
+        let raw: serde_json::Value = resp.json().await?;
+        Ok(crate::models::ApiResponse::from_json(raw))
+    }
+
+    /// Internal: make an authenticated POST request with form parameters and automatic 401 retry.
+    pub(crate) async fn post_form<T: DeserializeOwned, K: Into<String>, V: Into<String>>(
+        &self,
+        path: &str,
+        params: Vec<(K, V)>,
+    ) -> crate::Result<crate::models::ApiResponse<T>> {
+        let url = format!("{}{path}", self.config.host);
+        let string_params: Vec<(String, String)> = params
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+
+        let resp = self
+            .client
+            .post(&url)
+            .headers(self.auth_headers().await?)
+            .form(&string_params)
+            .send()
+            .await?;
+
+        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+            self.try_refresh_token().await?;
+            let resp = self
+                .client
+                .post(&url)
+                .headers(self.auth_headers().await?)
+                .form(&string_params)
+                .send()
+                .await?;
+            if !resp.status().is_success() {
+                return Err(crate::PixivError::Status(resp.status()));
+            }
+            let raw: serde_json::Value = resp.json().await?;
+            return Ok(crate::models::ApiResponse::from_json(raw));
+        }
 
         if !resp.status().is_success() {
             return Err(crate::PixivError::Status(resp.status()));
@@ -108,11 +276,11 @@ impl Default for PixivApi {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_new_has_defaults() {
+    #[tokio::test]
+    async fn test_new_has_defaults() {
         let api = PixivApi::new();
-        assert!(!api.is_authenticated());
-        assert!(api.user_id().is_none());
+        assert!(!api.is_authenticated().await);
+        assert!(api.user_id().await.is_none());
         assert_eq!(api.config.host, "https://app-api.pixiv.net");
     }
 
@@ -126,9 +294,9 @@ mod tests {
         assert_eq!(api.config.host, "https://custom.host");
     }
 
-    #[test]
-    fn test_default_trait() {
+    #[tokio::test]
+    async fn test_default_trait() {
         let api = PixivApi::default();
-        assert!(!api.is_authenticated());
+        assert!(!api.is_authenticated().await);
     }
 }
