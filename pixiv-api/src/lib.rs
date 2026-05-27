@@ -6,4 +6,6 @@ pub mod models;
 
 pub use api::PixivApi;
 pub use error::PixivError;
+pub use models::ApiResponse;
+
 pub type Result<T> = std::result::Result<T, PixivError>;
