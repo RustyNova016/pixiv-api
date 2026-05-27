@@ -85,6 +85,7 @@ cargo run -p pixiv-api --example get_token
 ```
 
 This will guide you through the OAuth2 PKCE flow:
+
 1. Open a URL in your browser
 2. Log in to Pixiv and authorize
 3. Copy the redirect URL back to the terminal
