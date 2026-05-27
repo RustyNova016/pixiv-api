@@ -1,3 +1,5 @@
+pub mod common;
+
 use serde::Deserialize;
 
 /// Hybrid response carrying both typed data and raw JSON.
