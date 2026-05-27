@@ -1,3 +1,5 @@
+mod config;
+
 use clap::{Parser, Subcommand};
 use pixiv_client::PixivApi;
 use pixiv_client::models::search::SearchSort;
@@ -58,22 +60,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 oauth_login_flow().await?
             } else if let Some(t) = token {
                 if t.is_empty() {
-                    // --token provided without a value, prompt stdin
-                    eprintln!("Paste your refresh token:");
-                    read_stdin_until_blank()?
+                    eprint!("Paste your refresh token: ");
+                    read_line_trimmed()?
                 } else {
                     t
                 }
             } else {
-                // Neither --oauth nor --token provided, show usage
                 eprintln!("Usage: pixiv-dl auth --token [TOKEN] or pixiv-dl auth --oauth");
                 return Ok(());
             };
 
+            eprint!("Authenticating...");
             let api = PixivApi::new();
             api.auth(&refresh_token).await?;
-            println!("Authenticated successfully.");
-            println!("User ID: {:?}", api.user_id().await);
+            eprintln!(" done.");
+
+            let cfg = config::Config {
+                refresh_token: Some(refresh_token),
+            };
+            config::save(&cfg)?;
+
+            if let Some(path) = config::config_path_display() {
+                eprintln!("Credential saved to {path}");
+            }
+
+            println!(
+                "Authenticated successfully. User ID: {:?}",
+                api.user_id().await
+            );
         }
         Commands::Search {
             keyword,
@@ -126,35 +140,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn authenticated_api() -> Result<PixivApi, Box<dyn std::error::Error>> {
+    // Try env var first, then saved config
     let token = std::env::var("PIXIV_REFRESH_TOKEN")
-        .map_err(|_| "Set PIXIV_REFRESH_TOKEN env var or use 'pixiv-dl auth' first")?;
+        .ok()
+        .or_else(|| {
+            let cfg = config::load();
+            cfg.refresh_token
+        })
+        .ok_or(
+            "Not authenticated. Run 'pixiv-dl auth --token <TOKEN>' or set PIXIV_REFRESH_TOKEN",
+        )?;
 
+    eprint!("Authenticating...");
     let api = PixivApi::new();
     api.auth(&token).await?;
+    eprintln!(" done.");
     Ok(api)
 }
 
-/// Read lines from stdin until an empty line is encountered.
-/// Returns the concatenated non-empty lines.
-fn read_stdin_until_blank() -> Result<String, Box<dyn std::error::Error>> {
-    let mut result = String::new();
-    loop {
-        let mut line = String::new();
-        std::io::stdin().read_line(&mut line)?;
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            if !result.is_empty() {
-                break;
-            }
-            // Skip leading blank lines
-            continue;
-        }
-        if !result.is_empty() {
-            result.push('\n');
-        }
-        result.push_str(trimmed);
-    }
-    Ok(result)
+/// Read a single line from stdin, trimmed.
+fn read_line_trimmed() -> Result<String, Box<dyn std::error::Error>> {
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line)?;
+    Ok(line.trim().to_string())
 }
 
 /// Run the OAuth2 PKCE flow to obtain a refresh token.
@@ -197,9 +205,9 @@ async fn oauth_login_flow() -> Result<String, Box<dyn std::error::Error>> {
     println!("   It will look like one of these:");
     println!("     https://app-api.pixiv.net/.../callback?state=...&code=XXXXX");
     println!("     pixiv://account/login?code=XXXXX");
-    println!("5. Copy the full URL and paste it below (empty lines are ignored)\n");
+    println!("5. Copy the full URL and paste it below\n");
 
-    let redirect_url = read_stdin_until_blank()?;
+    let redirect_url = read_line_trimmed()?;
 
     // Extract the code from the redirect URL
     let code = extract_code(&redirect_url).ok_or(

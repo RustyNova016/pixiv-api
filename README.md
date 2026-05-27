@@ -29,6 +29,29 @@ pixiv-client = { version = "0.1", features = ["gfw-bypass"] }
 
 ### As a CLI tool
 
+**From GitHub Releases (no Rust required):**
+
+Download the latest binary for your platform from [Releases](https://github.com/modenicheng/pixiv-api/releases).
+
+| Platform | File |
+|---|---|
+| Linux x86_64 | `pixiv-dl-*-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux ARM64 | `pixiv-dl-*-aarch64-unknown-linux-gnu.tar.gz` |
+| macOS Intel | `pixiv-dl-*-x86_64-apple-darwin.tar.gz` |
+| macOS Apple Silicon | `pixiv-dl-*-aarch64-apple-darwin.tar.gz` |
+| Windows x86_64 | `pixiv-dl-*-x86_64-pc-windows-msvc.zip` |
+
+```bash
+# Linux / macOS
+tar xzf pixiv-dl-*.tar.gz
+chmod +x pixiv-dl
+sudo mv pixiv-dl /usr/local/bin/   # or anywhere in your PATH
+
+# Windows — extract the zip and add the folder to your PATH
+```
+
+**From source (requires Rust):**
+
 ```bash
 cargo install --path pixiv-dl
 ```
@@ -63,8 +86,8 @@ async fn main() -> pixiv_client::Result<()> {
 ### CLI
 
 ```bash
-# Set your refresh token
-export PIXIV_REFRESH_TOKEN=your_token_here
+# Authenticate once (saves token to config file)
+pixiv-dl auth --token your_token_here
 
 # Search
 pixiv-dl search "landscape" --sort popular_desc
@@ -96,17 +119,44 @@ A command-line tool for searching, viewing, and downloading Pixiv illustrations.
 
 ### Installation
 
-```bash
-# From this repository
-cargo install --path pixiv-dl
+**Download pre-built binary** from [Releases](https://github.com/modenicheng/pixiv-api/releases) (no Rust toolchain needed):
 
-# Or build locally
-cargo build -p pixiv-dl
+```bash
+# Linux / macOS
+curl -LO https://github.com/modenicheng/pixiv-api/releases/latest/download/pixiv-dl-x86_64-unknown-linux-gnu.tar.gz
+tar xzf pixiv-dl-*.tar.gz && chmod +x pixiv-dl
+sudo mv pixiv-dl /usr/local/bin/
+```
+
+```powershell
+# Windows (PowerShell)
+Invoke-WebRequest https://github.com/modenicheng/pixiv-api/releases/latest/download/pixiv-dl-x86_64-pc-windows-msvc.zip -OutFile pixiv-dl.zip
+Expand-Archive pixiv-dl.zip -DestinationPath pixiv-dl
+```
+
+Then add the `pixiv-dl` folder to your `PATH` so the binary is available everywhere.
+
+**Or build from source:**
+
+```bash
+cargo install --path pixiv-dl
 ```
 
 ### Authentication
 
-Set your refresh token as an environment variable:
+Authenticate once and the token is saved automatically:
+
+```bash
+pixiv-dl auth --token your_token_here
+```
+
+The token is stored in your platform's config directory:
+- **Windows:** `%APPDATA%\pixiv-dl\config.json`
+- **Linux/macOS:** `~/.config/pixiv-dl/config.json`
+
+After authentication, all commands (`search`, `illust`, `download`) work without extra flags.
+
+Alternatively, set the environment variable (overrides saved config):
 
 ```bash
 # Linux/macOS
@@ -114,15 +164,12 @@ export PIXIV_REFRESH_TOKEN=your_token_here
 
 # Windows (PowerShell)
 $env:PIXIV_REFRESH_TOKEN = "your_token_here"
-
-# Windows (cmd)
-set PIXIV_REFRESH_TOKEN=your_token_here
 ```
 
-Or authenticate interactively:
+You can also use the interactive OAuth2 PKCE flow:
 
 ```bash
-pixiv-dl auth --token your_token_here
+pixiv-dl auth --oauth
 ```
 
 ### Commands
@@ -198,19 +245,16 @@ pixiv-dl download 12345 -o ./my_art
 ### Typical Workflow
 
 ```bash
-# 1. Get your refresh token (one-time setup)
-cargo run -p pixiv-client --example get_token
+# 1. Authenticate (one-time, saves token to config)
+pixiv-dl auth --token your_token_here
 
-# 2. Set the token
-export PIXIV_REFRESH_TOKEN=your_token_here
-
-# 3. Search for something
+# 2. Search for something
 pixiv-dl search "landscape" --sort popular_desc
 
-# 4. View details of an interesting result
+# 3. View details of an interesting result
 pixiv-dl illust 12345
 
-# 5. Download it
+# 4. Download it
 pixiv-dl download 12345 -o ./downloads
 ```
 
