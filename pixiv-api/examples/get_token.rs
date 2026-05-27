@@ -5,10 +5,9 @@
 /// Steps:
 /// 1. This script prints a URL — open it in your browser
 /// 2. Log in to Pixiv and authorize the app
-/// 3. After login, the browser redirects to a callback URL with ?code=...
-///    (the page will show an error — that's expected!)
-/// 4. Copy the FULL URL from the browser address bar
-/// 5. Paste it here when prompted
+/// 3. After login, open F12 dev tools → Network tab (check "Preserve log")
+/// 4. Look for a request to `callback?code=...` or a `pixiv://` URL
+/// 5. Copy the full URL and paste it here when prompted
 /// 6. The script prints your refresh token
 use sha2::Digest;
 
@@ -39,18 +38,25 @@ async fn main() {
     println!("1. Open this URL in your browser:\n");
     println!("   {}\n", url);
     println!("2. Log in to Pixiv and authorize the app");
-    println!("3. After login, your browser will redirect to a page that shows an error.");
-    println!("   That's expected! The URL in your address bar will look like:");
-    println!("   https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback?state=...&code=XXXXX");
-    println!("4. Copy the FULL URL from the address bar and paste it below\n");
+    println!("3. After login, open F12 dev tools -> Network tab (check \"Preserve log\")");
+    println!("4. Look for a request containing \"callback?code=\" or a pixiv:// URL");
+    println!("   It will look like one of these:");
+    println!("     https://app-api.pixiv.net/.../callback?state=...&code=XXXXX");
+    println!("     pixiv://account/login?code=XXXXX");
+    println!("5. Copy the full URL and paste it below (empty lines are ignored)\n");
 
-    // Read the redirect URL from user input
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
-    let redirect_url = input.trim();
+    // Read the redirect URL from user input, skipping empty lines
+    let redirect_url = loop {
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+        let trimmed = input.trim();
+        if !trimmed.is_empty() {
+            break trimmed.to_string();
+        }
+    };
 
     // Extract the code from the redirect URL
-    let code = extract_code(redirect_url).expect(
+    let code = extract_code(&redirect_url).expect(
         "Could not extract 'code' from the URL. Make sure you copied the full callback URL",
     );
 
