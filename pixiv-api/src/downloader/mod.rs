@@ -293,14 +293,14 @@ pub fn resolve_download_tasks(
     if let Some(meta_pages) = &illust.meta_pages
         && !meta_pages.is_empty()
     {
-        return meta_pages
+        let indices: Vec<usize> = match pages {
+            Some(pages) => pages.to_vec(),
+            None => (0..meta_pages.len()).collect(),
+        };
+        return indices
             .iter()
-            .enumerate()
-            .filter(|(i, _)| match pages {
-                Some(pages) => pages.contains(i),
-                None => true,
-            })
-            .filter_map(|(i, page)| {
+            .filter_map(|&i| {
+                let page = meta_pages.get(i)?;
                 let url = page
                     .image_urls
                     .as_ref()
@@ -518,6 +518,29 @@ mod tests {
             "https://img.example.com/99999_p0_master1200.jpg"
         );
         assert_eq!(tasks[1].filename, "99999_p2.jpg");
+    }
+
+    #[test]
+    fn test_resolve_multi_page_order_preserved() {
+        use crate::models::illust::Illust;
+        let json = r#"{
+            "id": 99999,
+            "title": "Multi",
+            "page_count": 3,
+            "image_urls": null,
+            "meta_single_page": null,
+            "meta_pages": [
+                {"image_urls": {"large": "https://img.example.com/99999_p0_master1200.jpg", "original": "https://img.example.com/99999_p0.jpg"}},
+                {"image_urls": {"large": "https://img.example.com/99999_p1_master1200.jpg", "original": "https://img.example.com/99999_p1.jpg"}},
+                {"image_urls": {"large": "https://img.example.com/99999_p2_master1200.jpg", "original": "https://img.example.com/99999_p2.jpg"}}
+            ]
+        }"#;
+        let illust: Illust = serde_json::from_str(json).unwrap();
+        let tasks = resolve_download_tasks(&illust, "large", Some(&[2, 0, 1]));
+        assert_eq!(tasks.len(), 3);
+        assert_eq!(tasks[0].filename, "99999_p2.jpg");
+        assert_eq!(tasks[1].filename, "99999_p0.jpg");
+        assert_eq!(tasks[2].filename, "99999_p1.jpg");
     }
 
     #[test]

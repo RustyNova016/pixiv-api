@@ -438,19 +438,19 @@ match api.illust_detail(12345).await {
 ## Downloader
 
 ```rust
-use pixiv_client::downloader::DownloadManager;
+use pixiv_client::downloader::{DownloadManager, DownloadTask, ProgressEvent, resolve_download_tasks};
 
+// Build download tasks from an illustration (handles single/multi-page)
+let tasks = resolve_download_tasks(&illust, "original", Some(&[0, 2])); // pages 0 and 2
+
+// Download with retry and progress
 let dm = DownloadManager::new(reqwest::Client::new(), "./images");
-
-// Single download
-let path = dm.download("https://...", "image.jpg").await?;
-
-// Concurrent downloads
-let items = vec![
-    ("https://...1.jpg", "1.jpg"),
-    ("https://...2.jpg", "2.jpg"),
-];
-let results = dm.download_many(&items, 3).await; // max 3 concurrent
+let results = dm.download_all(&tasks, 4, |evt| match evt {
+    ProgressEvent::Started { filename, .. } => println!("Downloading {filename}..."),
+    ProgressEvent::Finished { filename, path } => println!("Saved {filename} -> {}", path.display()),
+    ProgressEvent::Failed { filename, error, attempt } => eprintln!("Retry {attempt} for {filename}: {error}"),
+    _ => {},
+}).await;
 ```
 
 ## SNI Bypass (China/GFW)
