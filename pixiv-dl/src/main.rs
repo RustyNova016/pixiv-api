@@ -1,17 +1,19 @@
 mod config;
 
 use clap::{Parser, Subcommand};
+use futures::future::join_all;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use pixiv_client::PixivApi;
+use pixiv_client::downloader::{DownloadManager, ProgressEvent, resolve_download_tasks};
 use pixiv_client::models::search::SearchSort;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 struct IllustInput {
     id: u64,
     pages: Option<Vec<usize>>,
 }
 
-#[allow(dead_code)]
 fn parse_illust_input(s: &str) -> Result<IllustInput, String> {
     if let Some(bracket_start) = s.find('[') {
         let id_str = &s[..bracket_start];
@@ -158,9 +160,183 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             size,
             concurrency,
         } => {
-            // Rewritten in Task 5
-            eprintln!("download command will be implemented in next task");
-            let _ = (ids, output, size, concurrency);
+            let api = std::sync::Arc::new(authenticated_api().await?);
+
+            // Parse all inputs
+            let inputs: Vec<IllustInput> = ids
+                .iter()
+                .map(|s| parse_illust_input(s))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(pixiv_client::PixivError::Other)?;
+
+            // Fetch all illustration details in parallel
+            eprint!("Fetching details for {} illustration(s)...", inputs.len());
+            let fetch_sem = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency));
+            let fetch_handles: Vec<_> = inputs
+                .iter()
+                .map(|input| {
+                    let sem = fetch_sem.clone();
+                    let api = api.clone();
+                    let id = input.id;
+                    async move {
+                        let _permit = sem.acquire().await.unwrap();
+                        api.illust_detail(id).await
+                    }
+                })
+                .collect();
+            let details = join_all(fetch_handles).await;
+            eprintln!(" done.");
+
+            // Resolve all download tasks
+            let mut all_tasks: Vec<pixiv_client::downloader::DownloadTask> = Vec::new();
+            for (input, detail_result) in inputs.iter().zip(details.iter()) {
+                match detail_result {
+                    Ok(resp) => {
+                        if let Some(illust) = &resp.data {
+                            let tasks = resolve_download_tasks(
+                                &illust.illust,
+                                &size,
+                                input.pages.as_deref(),
+                            );
+                            if tasks.is_empty() {
+                                eprintln!("  Warning: no downloadable images for {}", input.id);
+                            }
+                            all_tasks.extend(tasks);
+                        } else {
+                            eprintln!("  Warning: typed parse failed for {}, using raw", input.id);
+                            // Fallback: extract URLs from raw JSON
+                            let raw = &resp.raw["illust"];
+                            if let Some(meta_pages) = raw["meta_pages"].as_array() {
+                                let indices: Vec<usize> = if let Some(filter) = &input.pages {
+                                    filter.clone()
+                                } else {
+                                    (0..meta_pages.len()).collect()
+                                };
+                                for &idx in &indices {
+                                    if let Some(page) = meta_pages.get(idx) {
+                                        let url = page["image_urls"][&size]
+                                            .as_str()
+                                            .or(page["image_urls"]["large"].as_str())
+                                            .or(page["image_urls"]["medium"].as_str());
+                                        if let Some(url) = url {
+                                            let ext =
+                                                if url.contains(".png") { "png" } else { "jpg" };
+                                            all_tasks.push(
+                                                pixiv_client::downloader::DownloadTask {
+                                                    url: url.to_string(),
+                                                    filename: format!(
+                                                        "{}_p{}.{}",
+                                                        input.id, idx, ext
+                                                    ),
+                                                },
+                                            );
+                                        }
+                                    }
+                                }
+                            } else {
+                                let url = raw["image_urls"]["large"]
+                                    .as_str()
+                                    .or(raw["meta_single_page"]["original_image_url"].as_str());
+                                if let Some(url) = url {
+                                    let ext = if url.contains(".png") { "png" } else { "jpg" };
+                                    all_tasks.push(pixiv_client::downloader::DownloadTask {
+                                        url: url.to_string(),
+                                        filename: format!("{}_p0.{}", input.id, ext),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("  Error fetching {}: {}", input.id, e);
+                    }
+                }
+            }
+
+            if all_tasks.is_empty() {
+                eprintln!("Nothing to download.");
+                return Ok(());
+            }
+
+            // Set up progress bars
+            let multi = MultiProgress::new();
+            let overall = multi.add(ProgressBar::new(all_tasks.len() as u64));
+            overall.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+                    .unwrap()
+                    .progress_chars("=>-"),
+            );
+            overall.set_message("Total");
+
+            let file_bars: std::sync::Arc<std::sync::Mutex<HashMap<String, ProgressBar>>> =
+                std::sync::Arc::new(std::sync::Mutex::new(HashMap::new()));
+            let multi_ref = multi.clone();
+            let file_bars_clone = file_bars.clone();
+            let overall_clone = overall.clone();
+
+            let dm = DownloadManager::new(reqwest::Client::new(), &output);
+
+            let results = dm
+                .download_all(&all_tasks, concurrency, move |evt| match evt {
+                    ProgressEvent::Started {
+                        filename,
+                        total_bytes,
+                    } => {
+                        let pb = multi_ref.add(ProgressBar::new(total_bytes.unwrap_or(0)));
+                        pb.set_style(
+                            ProgressStyle::default_bar()
+                                .template("  {prefix:.bold} [{bar:30}] {bytes}/{total_bytes} ({bytes_per_sec})")
+                                .unwrap()
+                                .progress_chars("=>-"),
+                        );
+                        pb.set_prefix(filename.clone());
+                        file_bars_clone.lock().unwrap().insert(filename, pb);
+                    }
+                    ProgressEvent::Chunk {
+                        filename,
+                        bytes_downloaded,
+                    } => {
+                        if let Some(pb) = file_bars_clone.lock().unwrap().get(&filename) {
+                            pb.set_position(bytes_downloaded);
+                        }
+                    }
+                    ProgressEvent::Finished { filename, .. } => {
+                        if let Some(pb) = file_bars_clone.lock().unwrap().remove(&filename) {
+                            pb.finish_with_message("done");
+                        }
+                        overall_clone.inc(1);
+                    }
+                    ProgressEvent::Failed {
+                        filename,
+                        error: _,
+                        attempt,
+                    } => {
+                        if let Some(pb) = file_bars_clone.lock().unwrap().get(&filename) {
+                            pb.set_message(format!("retry {}", attempt));
+                        }
+                    }
+                })
+                .await;
+
+            overall.finish_with_message("Complete");
+
+            // Report results
+            let mut succeeded = 0;
+            let mut failed = 0;
+            for result in &results {
+                match result {
+                    Ok(path) => {
+                        succeeded += 1;
+                        println!("  Saved: {}", path.display());
+                    }
+                    Err(e) => {
+                        failed += 1;
+                        eprintln!("  Failed: {e}");
+                    }
+                }
+            }
+            println!("\n{} succeeded, {} failed", succeeded, failed);
         }
     }
 
@@ -209,7 +385,7 @@ async fn oauth_login_flow() -> Result<String, Box<dyn std::error::Error>> {
     let code_verifier = {
         use rand::Rng;
         let mut rng = rand::rng();
-        let bytes: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+        let bytes: Vec<u8> = (0..32).map(|_| rng.random::<u8>()).collect();
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&bytes)
     };
     let code_challenge = {
