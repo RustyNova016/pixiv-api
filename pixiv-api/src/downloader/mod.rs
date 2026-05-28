@@ -115,6 +115,78 @@ impl DownloadManager {
         }
         results
     }
+
+    /// Download multiple tasks with concurrency control, progress reporting, and retry.
+    pub async fn download_all<F>(
+        &self,
+        tasks: &[DownloadTask],
+        concurrency: usize,
+        on_progress: F,
+    ) -> Vec<crate::Result<PathBuf>>
+    where
+        F: Fn(ProgressEvent) + Send + Sync + 'static,
+    {
+        let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency));
+        let on_progress = std::sync::Arc::new(on_progress);
+        let mut handles = Vec::new();
+
+        for task in tasks {
+            let sem = semaphore.clone();
+            let url = task.url.clone();
+            let filename = task.filename.clone();
+            let client = self.client.clone();
+            let dir = self.output_dir.clone();
+            let progress = on_progress.clone();
+
+            handles.push(tokio::spawn(async move {
+                let _permit = sem
+                    .acquire()
+                    .await
+                    .map_err(|e| PixivError::Download(e.to_string()))?;
+
+                progress(ProgressEvent::Started {
+                    filename: filename.clone(),
+                    total_bytes: None,
+                });
+
+                let max_retries = 4u32;
+                let mut last_err = String::new();
+
+                for attempt in 0..max_retries {
+                    if attempt > 0 {
+                        let delay_ms = 1000 * 2u64.pow(attempt - 1);
+                        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                    }
+
+                    match download_file(&client, &dir, &url, &filename, &*progress).await {
+                        Ok(path) => return Ok(path),
+                        Err(e) => {
+                            last_err = e.to_string();
+                            progress(ProgressEvent::Failed {
+                                filename: filename.clone(),
+                                error: last_err.clone(),
+                                attempt: attempt + 1,
+                            });
+                        }
+                    }
+                }
+
+                Err(PixivError::Download(format!(
+                    "{}: failed after {} attempts: {}",
+                    filename, max_retries, last_err
+                )))
+            }));
+        }
+
+        let mut results = Vec::new();
+        for handle in handles {
+            match handle.await {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(Err(PixivError::Download(e.to_string()))),
+            }
+        }
+        results
+    }
 }
 
 /// Extract the file extension from a URL.
@@ -145,6 +217,60 @@ pub fn url_for_size<'a>(urls: &'a ImageUrls, size: &str) -> Option<&'a str> {
             .or(urls.large.as_deref())
             .or(urls.medium.as_deref()),
     }
+}
+
+/// Download a single file with chunk-level progress reporting.
+async fn download_file<F>(
+    client: &reqwest::Client,
+    output_dir: &std::path::Path,
+    url: &str,
+    filename: &str,
+    on_progress: &F,
+) -> crate::Result<PathBuf>
+where
+    F: Fn(ProgressEvent) + Send + Sync,
+{
+    let resp = client
+        .get(url)
+        .header("Referer", "https://app-api.pixiv.net/")
+        .send()
+        .await
+        .map_err(|e| PixivError::Download(e.to_string()))?;
+
+    if !resp.status().is_success() {
+        return Err(PixivError::Download(format!(
+            "HTTP {} for {}",
+            resp.status(),
+            url
+        )));
+    }
+
+    fs::create_dir_all(output_dir).await?;
+    let path = output_dir.join(filename);
+
+    let mut file = tokio::fs::File::create(&path).await?;
+    let mut downloaded: u64 = 0;
+
+    use tokio::io::AsyncWriteExt;
+    let mut stream = resp.bytes_stream();
+    use futures_util::StreamExt;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| PixivError::Download(e.to_string()))?;
+        file.write_all(&chunk).await?;
+        downloaded += chunk.len() as u64;
+        on_progress(ProgressEvent::Chunk {
+            filename: filename.to_string(),
+            bytes_downloaded: downloaded,
+        });
+    }
+
+    on_progress(ProgressEvent::Finished {
+        filename: filename.to_string(),
+        path: path.clone(),
+    });
+
+    Ok(path)
 }
 
 /// Resolve an illustration into a list of download tasks.
@@ -401,5 +527,35 @@ mod tests {
         let illust: Illust = serde_json::from_str(json).unwrap();
         let tasks = resolve_download_tasks(&illust, "original", None);
         assert!(tasks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_download_all_with_invalid_url_has_retry_events() {
+        let client = reqwest::Client::new();
+        let dm = DownloadManager::new(client, std::env::temp_dir().join("pixiv-test-download-all"));
+
+        let tasks = vec![DownloadTask {
+            url: "https://httpbin.org/status/404".to_string(),
+            filename: "test_fail.jpg".to_string(),
+        }];
+
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+
+        let results = dm
+            .download_all(&tasks, 1, move |evt| {
+                let s = format!("{:?}", evt);
+                events_clone.lock().unwrap().push(s);
+            })
+            .await;
+
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_err());
+
+        let recorded = events.lock().unwrap();
+        let has_started = recorded.iter().any(|e| e.contains("Started"));
+        let has_failed = recorded.iter().any(|e| e.contains("Failed"));
+        assert!(has_started, "Should emit Started event");
+        assert!(has_failed, "Should emit Failed event");
     }
 }
