@@ -17,7 +17,7 @@ A Rust client library and CLI tool for the Pixiv App API (6.x), with full API pa
 
 ```toml
 [dependencies]
-pixiv-client = "1.1"
+pixiv-client = "1.2"
 ```
 
 With SNI bypass support (for users behind the Great Firewall):
