@@ -198,8 +198,17 @@ pub struct IllustCommentsResult {
 }
 
 /// Response from illust_bookmark_detail endpoint.
+///
+/// The API wraps the detail in a `bookmark_detail` key.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IllustBookmarkDetailResult {
+    #[serde(default)]
+    pub bookmark_detail: Option<BookmarkDetail>,
+}
+
+/// The actual bookmark detail data nested inside `IllustBookmarkDetailResult`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BookmarkDetail {
     #[serde(default)]
     pub is_bookmarked: bool,
     #[serde(default)]
@@ -217,9 +226,14 @@ pub struct BookmarkTag {
 }
 
 /// A trending tag with its associated illustration.
+///
+/// The API returns `tag` as a plain string (not a Tag object),
+/// with `translated_name` at the same level.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendingTag {
-    pub tag: super::common::Tag,
+    pub tag: String,
+    #[serde(default)]
+    pub translated_name: Option<String>,
     #[serde(default)]
     pub illust: Option<Illust>,
 }

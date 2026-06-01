@@ -2,7 +2,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPreview {
-    pub id: u64,
+    /// The user object (present in user_related/recommended/list responses).
+    #[serde(default)]
+    pub user: Option<User>,
+    /// Preview illustrations (present in user_related/recommended/list responses).
+    #[serde(default)]
+    pub illusts: Option<Vec<super::illust::Illust>>,
+    /// Preview novels (present in user_related/recommended/list responses).
+    #[serde(default)]
+    pub novels: Option<Vec<super::novel::Novel>>,
+    /// Simple user fields (present in simple preview contexts, e.g. illust.user).
+    #[serde(default)]
+    pub id: Option<u64>,
     #[serde(default)]
     pub name: Option<String>,
     #[serde(default)]
@@ -195,7 +206,7 @@ mod tests {
     fn test_user_preview_partial() {
         let json = r#"{"id": 111, "name": "Artist"}"#;
         let user: UserPreview = serde_json::from_str(json).unwrap();
-        assert_eq!(user.id, 111);
+        assert_eq!(user.id, Some(111));
         assert_eq!(user.name.as_deref(), Some("Artist"));
     }
 

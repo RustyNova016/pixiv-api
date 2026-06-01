@@ -53,8 +53,10 @@ pub struct Novel {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovelSeriesInfo {
-    pub id: u64,
-    pub title: String,
+    #[serde(default)]
+    pub id: Option<u64>,
+    #[serde(default)]
+    pub title: Option<String>,
     #[serde(default)]
     pub viewable: Option<bool>,
     #[serde(default)]
@@ -164,11 +166,21 @@ pub struct NovelDetail {
 }
 
 /// Response from novel_series endpoint.
+///
+/// The API returns `novel_series_detail` (not `novel_series`), plus
+/// optional `novel_series_first_novel` and `novel_series_latest_novel`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovelSeriesResult {
-    pub novel_series: NovelSeries,
+    #[serde(default)]
+    pub novel_series_detail: Option<NovelSeries>,
+    #[serde(default)]
+    pub novel_series_first_novel: Option<Novel>,
+    #[serde(default)]
+    pub novel_series_latest_novel: Option<Novel>,
     #[serde(default)]
     pub novels: Vec<Novel>,
+    #[serde(default)]
+    pub next_url: Option<String>,
 }
 
 /// Response from novel_text endpoint.
