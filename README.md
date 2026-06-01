@@ -68,6 +68,10 @@ async fn main() -> pixiv_client::Result<()> {
     let api = PixivApi::new();
     api.auth("your_refresh_token").await?;
 
+    // Set Accept-Language so tags come back with Chinese translations
+    // (default is Japanese only)
+    api.set_accept_lang("zh-CN").await?;
+
     // Search illustrations
     let results = api.search_illust("landscape", Some("popular_desc"), None, None, None).await?;
 
@@ -323,11 +327,11 @@ assert_eq!(api.user_id().await, Some(12345));
 
 ### Custom Headers *(since 1.1.0)*
 
-Set per-request headers at runtime — useful for language preference, user-agent overrides, etc.
+Set per-request headers at runtime. The most common use case is `Accept-Language` — Pixiv returns tags in Japanese by default; setting this header gives you translated tag names.
 
 ```rust
-// Set Accept-Language so Pixiv returns localized tag names and UI text
-api.set_accept_lang("zh-cn").await?;
+// Tags will include Chinese (zh-CN), English (en), etc. translations
+api.set_accept_lang("zh-CN").await?;
 
 // Or set any header by name
 use reqwest::header::HeaderName;
