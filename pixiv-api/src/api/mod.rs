@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod headers;
 pub mod illust;
 pub mod misc;
 pub mod novel;
@@ -13,6 +14,7 @@ use crate::error::PixivError;
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue, REFERER};
 use reqwest::{Client, Method};
 use serde::de::DeserializeOwned;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Pixiv App API client.
@@ -31,6 +33,7 @@ pub struct PixivApi {
     pub(crate) client: Client,
     pub(crate) tokens: Mutex<(Option<String>, Option<String>, Option<u64>)>,
     pub(crate) config: Config,
+    pub(crate) custom_headers: Arc<Mutex<HeaderMap>>,
 }
 
 impl PixivApi {
@@ -57,6 +60,7 @@ impl PixivApi {
             client,
             tokens: Mutex::new((None, None, None)),
             config,
+            custom_headers: Arc::new(Mutex::new(HeaderMap::new())),
         }
     }
 
@@ -165,7 +169,7 @@ impl PixivApi {
         ))
     }
 
-    /// Internal: build auth headers from current token.
+    /// Internal: build auth headers from current token, merged with custom headers.
     pub(crate) async fn auth_headers(&self) -> crate::Result<HeaderMap> {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -180,6 +184,13 @@ impl PixivApi {
                     .map_err(|e| PixivError::Other(format!("invalid auth header: {e}")))?,
             );
         }
+        drop(tokens);
+
+        let custom = self.custom_headers.lock().await;
+        for (name, value) in custom.iter() {
+            headers.insert(name.clone(), value.clone());
+        }
+
         Ok(headers)
     }
 
