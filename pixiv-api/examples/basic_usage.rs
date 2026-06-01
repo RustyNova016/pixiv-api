@@ -3,7 +3,6 @@ use pixiv_client::models::search::SearchSort;
 
 #[tokio::main]
 async fn main() -> Result<(), pixiv_client::PixivError> {
-    // Create a new client
     let api = PixivApi::new();
 
     // Authenticate (requires PIXIV_REFRESH_TOKEN env var)
@@ -12,20 +11,30 @@ async fn main() -> Result<(), pixiv_client::PixivError> {
     api.auth(&token).await?;
     println!("Authenticated as user {:?}", api.user_id().await);
 
-    // Search for illustrations (typed response with raw fallback)
+    // Search for illustrations
+    // If the access token has expired, you'll get a 401 error.
+    // Handle it explicitly by calling refresh_token() and retrying:
+    //
+    //   let results = match api.search_illust("landscape", None, None, None, None).await {
+    //       Err(e) if e.is_auth_error() => {
+    //           api.refresh_token().await?;
+    //           api.search_illust("landscape", None, None, None, None).await?
+    //       }
+    //       other => other?,
+    //   };
+
     let results = api
         .search_illust("landscape", Some(SearchSort::PopularDesc), None, None, None)
         .await?;
+
     if let Some(data) = &results.data {
         println!(
             "Got typed response: {} bytes",
             serde_json::to_string(data).unwrap().len()
         );
     }
-    // Always available regardless of parse success
     println!("Raw JSON available: {}", results.raw.is_object());
 
-    // Get illustration detail
     let detail = api.illust_detail(12345).await?;
     println!(
         "Illustration raw: {}",
