@@ -76,8 +76,14 @@ impl PixivApi {
         tokens.2
     }
 
-    /// Internal: attempt to refresh the access token using the stored refresh token.
-    async fn try_refresh_token(&self) -> crate::Result<()> {
+    /// Refresh the access token using the stored refresh token.
+    ///
+    /// Call this explicitly when you receive a [`PixivError::Status(401)`]
+    /// to obtain fresh credentials. The new tokens are stored internally
+    /// and will be used by subsequent API calls.
+    ///
+    /// Returns `Err` if no refresh token is stored or the refresh request fails.
+    pub async fn refresh_token(&self) -> crate::Result<()> {
         let rt = {
             let tokens = self.tokens.lock().await;
             tokens.1.clone()
@@ -210,7 +216,7 @@ impl PixivApi {
             .await?;
 
         if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
-            self.try_refresh_token().await?;
+            self.refresh_token().await?;
             let resp = self
                 .client
                 .request(method, &url)
@@ -253,7 +259,7 @@ impl PixivApi {
             .await?;
 
         if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
-            self.try_refresh_token().await?;
+            self.refresh_token().await?;
             let resp = self
                 .client
                 .post(&url)

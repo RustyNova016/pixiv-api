@@ -24,6 +24,15 @@ pub enum PixivError {
     Other(String),
 }
 
+impl PixivError {
+    /// Returns `true` if this error indicates an authentication failure (HTTP 401).
+    ///
+    /// Useful for deciding whether to call [`PixivApi::refresh_token()`](crate::PixivApi::refresh_token).
+    pub fn is_auth_error(&self) -> bool {
+        matches!(self, PixivError::Status(s) if *s == reqwest::StatusCode::UNAUTHORIZED)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -44,5 +53,17 @@ mod tests {
     fn test_other_error() {
         let err = PixivError::Other("custom".into());
         assert_eq!(err.to_string(), "custom");
+    }
+
+    #[test]
+    fn test_is_auth_error() {
+        let err = PixivError::Status(StatusCode::UNAUTHORIZED);
+        assert!(err.is_auth_error());
+
+        let err = PixivError::Status(StatusCode::NOT_FOUND);
+        assert!(!err.is_auth_error());
+
+        let err = PixivError::Auth("bad".into());
+        assert!(!err.is_auth_error());
     }
 }
