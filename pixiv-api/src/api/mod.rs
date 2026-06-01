@@ -19,6 +19,13 @@ use tokio::sync::Mutex;
 
 /// Pixiv App API client.
 ///
+/// # Authentication
+///
+/// Call [`auth()`](Self::auth) with a refresh token to obtain credentials.
+/// If an API call returns [`PixivError::Status(401)`], call
+/// [`refresh_token()`](Self::refresh_token) to renew the access token,
+/// then retry.
+///
 /// # Example
 /// ```rust,no_run
 /// use pixiv_client::PixivApi;
@@ -26,6 +33,15 @@ use tokio::sync::Mutex;
 /// # async fn example() -> Result<(), pixiv_client::PixivError> {
 /// let api = PixivApi::new();
 /// api.auth("your_refresh_token").await?;
+///
+/// // If a call fails with 401, refresh and retry:
+/// let result = match api.search_illust("landscape", None, None, None, None).await {
+///     Err(e) if e.is_auth_error() => {
+///         api.refresh_token().await?;
+///         api.search_illust("landscape", None, None, None, None).await?
+///     }
+///     other => other?,
+/// };
 /// # Ok(())
 /// # }
 /// ```

@@ -73,7 +73,14 @@ async fn main() -> pixiv_client::Result<()> {
     api.set_accept_lang("zh-CN").await?;
 
     // Search illustrations
-    let results = api.search_illust("landscape", Some("popular_desc"), None, None, None).await?;
+    // If the access token expires, you'll get a 401. Handle it explicitly:
+    let results = match api.search_illust("landscape", Some("popular_desc"), None, None, None).await {
+        Err(e) if e.is_auth_error() => {
+            api.refresh_token().await?;
+            api.search_illust("landscape", Some("popular_desc"), None, None, None).await?
+        }
+        other => other?,
+    };
 
     // Access typed data (if parse succeeded)
     if let Some(data) = &results.data {
@@ -522,10 +529,32 @@ let client_config = ClientConfig {
 let api = PixivApi::with_config(config, client_config);
 ```
 
+## Migration Guide
+
+### Token Refresh (v1.2.0)
+
+**Before (v1.0–v1.1):** API calls silently retried on HTTP 401 by refreshing the token internally.
+
+**After (v1.2.0):** API calls return `Err(PixivError::Status(401))` directly. You must refresh explicitly:
+
+```rust
+match api.search_illust("keyword", None, None, None, None).await {
+    Err(e) if e.is_auth_error() => {
+        api.refresh_token().await?;  // renew tokens
+        // retry your call
+        api.search_illust("keyword", None, None, None, None).await?
+    }
+    other => other?,
+}
+```
+
+The `is_auth_error()` helper on `PixivError` makes it easy to match 401s. This change gives you full control over when and how tokens are refreshed.
+
 ## What's New
 
 ### 1.1.0
 
+- **Explicit token refresh** — removed implicit 401 auto-retry. Call `refresh_token()` explicitly when you get a 401. `is_auth_error()` helper added for ergonomic matching. See [Migration Guide](#migration-guide).
 - **Custom headers** — set per-request headers at runtime via `set_header()`, `set_accept_lang()`, and related methods. Useful for `Accept-Language` localization and custom headers.
 - **Model fixes** — corrected deserialization for `IllustBookmarkDetailResult`, `TrendingTag`, `NovelSeriesResult`, `NovelSeriesInfo`, and `UserPreview` to match real Pixiv API responses.
 
