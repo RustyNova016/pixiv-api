@@ -96,6 +96,22 @@ enum Commands {
     },
 }
 
+/// Execute an API call, refreshing the token once on 401.
+macro_rules! with_refresh {
+    ($api:expr, $call:expr) => {
+        match $call.await {
+            Err(e) if e.is_auth_error() => {
+                eprint!("Token expired, refreshing...");
+                $api.refresh_token().await?;
+                eprintln!(" done.");
+                $call.await?
+            }
+            Err(e) => return Err(e.into()),
+            Ok(v) => v,
+        }
+    };
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
@@ -144,14 +160,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let sort_enum: SearchSort = sort
                 .parse()
                 .map_err(|e: String| pixiv_client::PixivError::Other(e))?;
-            let result = api
-                .search_illust(&keyword, Some(sort_enum), None, None, Some(offset))
-                .await?;
+            let result = with_refresh!(
+                api,
+                api.search_illust(&keyword, Some(sort_enum.clone()), None, None, Some(offset))
+            );
             println!("{}", serde_json::to_string_pretty(&result.raw)?);
         }
         Commands::Illust { id } => {
             let api = authenticated_api().await?;
-            let result = api.illust_detail(id).await?;
+            let result = with_refresh!(api, api.illust_detail(id));
             println!("{}", serde_json::to_string_pretty(&result.raw)?);
         }
         Commands::Download {
@@ -180,7 +197,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let id = input.id;
                     async move {
                         let _permit = sem.acquire().await.unwrap();
-                        api.illust_detail(id).await
+                        match api.illust_detail(id).await {
+                            Err(e) if e.is_auth_error() => {
+                                api.refresh_token().await?;
+                                api.illust_detail(id).await
+                            }
+                            other => other,
+                        }
                     }
                 })
                 .collect();
