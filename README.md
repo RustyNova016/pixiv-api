@@ -17,14 +17,14 @@ A Rust client library and CLI tool for the Pixiv App API (6.x), with full API pa
 
 ```toml
 [dependencies]
-pixiv-client = "0.1"
+pixiv-client = "1.1"
 ```
 
 With SNI bypass support (for users behind the Great Firewall):
 
 ```toml
 [dependencies]
-pixiv-client = { version = "0.1", features = ["gfw-bypass"] }
+pixiv-client = { version = "1.1", features = ["gfw-bypass"] }
 ```
 
 ### As a CLI tool
@@ -321,6 +321,31 @@ assert!(api.is_authenticated().await);
 assert_eq!(api.user_id().await, Some(12345));
 ```
 
+### Custom Headers *(since 1.1.0)*
+
+Set per-request headers at runtime — useful for language preference, user-agent overrides, etc.
+
+```rust
+// Set Accept-Language so Pixiv returns localized tag names and UI text
+api.set_accept_lang("zh-cn").await?;
+
+// Or set any header by name
+use reqwest::header::HeaderName;
+api.set_header(HeaderName::from_static("x-custom"), "value").await?;
+
+// Remove or clear
+api.remove_header(HeaderName::from_static("x-custom")).await;
+api.clear_headers().await;
+```
+
+| Method | Description |
+|---|---|
+| `set_accept_lang(lang)` | Set `Accept-Language` header *(1.1.0)* |
+| `set_header(name, value)` | Set an arbitrary header *(1.1.0)* |
+| `remove_header(name)` | Remove a custom header *(1.1.0)* |
+| `clear_headers()` | Remove all custom headers *(1.1.0)* |
+| `custom_headers_snapshot()` | Get current custom headers *(1.1.0)* |
+
 ### User Endpoints
 
 | Method | Description |
@@ -458,7 +483,7 @@ let results = dm.download_all(&tasks, 4, |evt| match evt {
 Enable the `gfw-bypass` feature:
 
 ```toml
-pixiv-client = { version = "0.1", features = ["gfw-bypass"] }
+pixiv-client = { version = "1.1", features = ["gfw-bypass"] }
 ```
 
 Use it to resolve Pixiv's real IP via DNS-over-HTTPS:
@@ -492,6 +517,13 @@ let client_config = ClientConfig {
 
 let api = PixivApi::with_config(config, client_config);
 ```
+
+## What's New
+
+### 1.1.0
+
+- **Custom headers** — set per-request headers at runtime via `set_header()`, `set_accept_lang()`, and related methods. Useful for `Accept-Language` localization and custom headers.
+- **Model fixes** — corrected deserialization for `IllustBookmarkDetailResult`, `TrendingTag`, `NovelSeriesResult`, `NovelSeriesInfo`, and `UserPreview` to match real Pixiv API responses.
 
 ## Acknowledgments
 

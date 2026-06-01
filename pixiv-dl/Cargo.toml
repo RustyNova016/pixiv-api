@@ -1,12 +1,12 @@
 [package]
 name = "pixiv-dl"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 description = "CLI tool for searching and downloading illustrations from Pixiv"
 license = "MIT"
 
 [dependencies]
-pixiv-client = { path = "../pixiv-api", version = "1.0.0" }
+pixiv-client = { path = "../pixiv-api", version = "1.1.0" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }

@@ -1,6 +1,6 @@
 [package]
 name = "pixiv-client"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 description = "Async Rust client for the Pixiv App API (6.x) with typed models and automatic token refresh"
 license = "MIT"
