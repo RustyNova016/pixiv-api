@@ -200,7 +200,7 @@ impl PixivApi {
         Ok(headers)
     }
 
-    /// Internal: make an authenticated API request with automatic 401 retry.
+    /// Make an authenticated API request.
     pub(crate) async fn request<T: DeserializeOwned>(
         &self,
         method: Method,
@@ -210,25 +210,10 @@ impl PixivApi {
 
         let resp = self
             .client
-            .request(method.clone(), &url)
+            .request(method, &url)
             .headers(self.auth_headers().await?)
             .send()
             .await?;
-
-        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
-            self.refresh_token().await?;
-            let resp = self
-                .client
-                .request(method, &url)
-                .headers(self.auth_headers().await?)
-                .send()
-                .await?;
-            if !resp.status().is_success() {
-                return Err(crate::PixivError::Status(resp.status()));
-            }
-            let raw: serde_json::Value = resp.json().await?;
-            return Ok(crate::models::ApiResponse::from_json(raw));
-        }
 
         if !resp.status().is_success() {
             return Err(crate::PixivError::Status(resp.status()));
@@ -238,7 +223,7 @@ impl PixivApi {
         Ok(crate::models::ApiResponse::from_json(raw))
     }
 
-    /// Internal: make an authenticated POST request with form parameters and automatic 401 retry.
+    /// Make an authenticated POST request with form parameters.
     pub(crate) async fn post_form<T: DeserializeOwned, K: Into<String>, V: Into<String>>(
         &self,
         path: &str,
@@ -257,22 +242,6 @@ impl PixivApi {
             .form(&string_params)
             .send()
             .await?;
-
-        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
-            self.refresh_token().await?;
-            let resp = self
-                .client
-                .post(&url)
-                .headers(self.auth_headers().await?)
-                .form(&string_params)
-                .send()
-                .await?;
-            if !resp.status().is_success() {
-                return Err(crate::PixivError::Status(resp.status()));
-            }
-            let raw: serde_json::Value = resp.json().await?;
-            return Ok(crate::models::ApiResponse::from_json(raw));
-        }
 
         if !resp.status().is_success() {
             return Err(crate::PixivError::Status(resp.status()));
