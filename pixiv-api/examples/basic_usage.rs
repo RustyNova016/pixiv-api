@@ -1,4 +1,5 @@
 use pixiv_client::PixivApi;
+use pixiv_client::models::search::SearchOptions;
 use pixiv_client::models::search::SearchSort;
 
 #[tokio::main]
@@ -23,8 +24,10 @@ async fn main() -> Result<(), pixiv_client::PixivError> {
     //       other => other?,
     //   };
 
+    let mut options = SearchOptions::default();
+    options.sort = Some(SearchSort::PopularDesc);
     let results = api
-        .search_illust("landscape", Some(SearchSort::PopularDesc), None, None, None)
+        .search_illust("landscape", Some(options))
         .await?;
 
     if let Some(data) = &results.data {

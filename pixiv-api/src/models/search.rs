@@ -1,7 +1,56 @@
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SearchOptions {
+    /// Sort results by
+    pub sort: Option<SearchSort>,
+
+    /// How fuzzy the search is
+    pub target: Option<SearchTarget>,
+
+    /// Add an offset to the search. Cannot go higher than 5000, so use along side `start_date` and `end_date`
+    pub offset: Option<u32>,
+
+    /// Seems to add result that match the translated tags.
+    pub include_translated_tag_results: Option<bool>,
+
+    /// Seems to also add keyword results
+    pub merge_plain_keyword_results: Option<bool>,
+
+    /// Include the works that may violate the pixiv guidelines
+    pub include_potential_violation_works: Option<bool>,
+
+    /// Hide ai images
+    pub search_ai_type: Option<bool>,
+
+    /// Search posts that have been made after this date. Cannot make a range bigger than 1 year
+    pub start_date: Option<NaiveDate>,
+
+    /// Search posts that have been made before this date. Cannot make a range bigger than 1 year
+    pub end_date: Option<NaiveDate>,
+
+    /// The content type to return
+    pub content_type: Option<SearchContentType>,
+
+    /// The minimum width of the image
+    pub width_min: Option<u64>,
+    /// The minimum height of the image
+    pub height_min: Option<u64>,
+    /// The maximum width of the image
+    pub width_max: Option<u64>,
+    /// The maximum height of the image
+    pub height_max: Option<u64>,
+
+    /// the image ratio
+    pub ratio_pattern: Option<SearchImageRatio>,
+
+    /// The tool used for the work
+    pub tool: Option<String>
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchSort {
     DateDesc,
@@ -38,7 +87,7 @@ impl FromStr for SearchSort {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchDuration {
     WithinLastDay,
@@ -73,7 +122,7 @@ impl FromStr for SearchDuration {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchTarget {
     PartialMatchForTags,
@@ -104,6 +153,49 @@ impl FromStr for SearchTarget {
             "title_and_caption" => Ok(Self::TitleAndCaption),
             "keyword" => Ok(Self::Keyword),
             _ => Err(format!("unknown SearchTarget variant: {s}")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchContentType {
+    Ugoira,
+    Manga,
+    Illust,
+
+    IllustAndUgoira,
+    #[default]
+    IllustAndMangaAndUgoira,
+}
+
+impl SearchContentType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Illust => "illust",
+            Self::IllustAndMangaAndUgoira => "illust_and_manga_and_ugoira",
+            Self::IllustAndUgoira => "illust_and_ugoira",
+            Self::Manga => "manga",
+            Self::Ugoira => "ugoira",
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchImageRatio {
+    Landscape,
+    Portrait,
+    Square,
+}
+
+impl SearchImageRatio {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Landscape => "landscape",
+            Self::Portrait => "portrait",
+            Self::Square => "square",
         }
     }
 }

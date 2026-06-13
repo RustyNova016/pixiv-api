@@ -3,6 +3,7 @@
 /// Run: cargo run -p pixiv-client --example download_illusts
 use pixiv_client::PixivApi;
 use pixiv_client::downloader::DownloadManager;
+use pixiv_client::models::search::SearchOptions;
 use pixiv_client::models::search::SearchSort;
 
 #[tokio::main]
@@ -17,9 +18,9 @@ async fn main() -> Result<(), pixiv_client::PixivError> {
     // Search for illustrations
     let keyword = "風景"; // "landscape" in Japanese
     println!("Searching for '{}'...", keyword);
-    let results = api
-        .search_illust(keyword, Some(SearchSort::PopularDesc), None, None, None)
-        .await?;
+    let mut options = SearchOptions::default();
+    options.sort = Some(SearchSort::PopularDesc);
+    let results = api.search_illust(keyword, Some(options)).await?;
 
     let Some(data) = &results.data else {
         println!("Failed to parse search results, raw JSON:");

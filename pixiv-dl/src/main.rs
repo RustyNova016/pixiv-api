@@ -5,6 +5,7 @@ use futures::future::join_all;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use pixiv_client::PixivApi;
 use pixiv_client::downloader::{DownloadManager, ProgressEvent, resolve_download_tasks};
+use pixiv_client::models::search::SearchOptions;
 use pixiv_client::models::search::SearchSort;
 use std::collections::HashMap;
 
@@ -160,10 +161,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let sort_enum: SearchSort = sort
                 .parse()
                 .map_err(|e: String| pixiv_client::PixivError::Other(e))?;
-            let result = with_refresh!(
-                api,
-                api.search_illust(&keyword, Some(sort_enum.clone()), None, None, Some(offset))
-            );
+            let mut options = SearchOptions::default();
+            options.sort = Some(sort_enum);
+            options.offset = Some(offset.into());
+            let result = with_refresh!(api, api.search_illust(&keyword, Some(options.clone())));
             println!("{}", serde_json::to_string_pretty(&result.raw)?);
         }
         Commands::Illust { id } => {

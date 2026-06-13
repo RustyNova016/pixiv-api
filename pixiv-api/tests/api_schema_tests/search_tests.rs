@@ -4,18 +4,19 @@
 //! Requires: PIXIV_REFRESH_TOKEN env var + proxy at 127.0.0.1:7897
 
 use super::{assert_data_ok, create_client, print_schema_comparison, sf};
-use pixiv_client::models::search::{SearchDuration, SearchSort, SearchTarget};
+use pixiv_client::models::search::SearchOptions;
+use pixiv_client::models::search::{SearchSort, SearchTarget};
 
 #[tokio::test]
 async fn test_search_illust_schema() {
     let api = create_client().await;
+    let mut options = SearchOptions::default();
+    options.sort = Some(SearchSort::DateDesc);
+    options.target = Some(SearchTarget::PartialMatchForTags);
     let resp = api
         .search_illust(
             "初音ミク",
-            Some(SearchSort::DateDesc),
-            Some(SearchDuration::None),
-            Some(SearchTarget::PartialMatchForTags),
-            None,
+            Some(options),
         )
         .await
         .expect("search_illust failed");
